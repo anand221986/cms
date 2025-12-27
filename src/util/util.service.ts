@@ -1,47 +1,33 @@
 import { Injectable } from "@nestjs/common";
 import * as moment from "moment";
+
 import * as crypto from 'crypto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class UtilService {
   KEY = "";
-  public NODE_ENVIRONMENT = "local";
-  public DB_HOST = "";
-  public DB_USER = "";
-  public DB_PORT = 0;
-  public DB_PASSWORD = "";
-  public DB_DATABASE = "";
-  public CASE_BASE_DIR = "/var/www/html/ats_api/cases/";
-  public UPLOAD_DIR = "/var/www/html/ats_api/uploads/";
+  readonly NODE_ENVIRONMENT: string;
+  readonly DB_HOST: string;
+  readonly DB_USER: string;
+  readonly DB_PORT: number;
+  readonly DB_PASSWORD: string;
+  readonly DB_DATABASE: string;
+  constructor(private readonly config: ConfigService) {
+this.NODE_ENVIRONMENT = this.config.get<string>('NODE_ENV', 'local');
 
-  constructor() {
-    this.NODE_ENVIRONMENT ="local";
-    //local
-    if (this.NODE_ENVIRONMENT == "local") {
-     // if (this.NODE_ENVIRONMENT == "production") {
-      
-      this.NODE_ENVIRONMENT = "local";
-      this.DB_HOST = "72.61.229.100";
-      this.DB_USER = "rahul";
-      this.DB_PORT = 5432;
-      this.DB_PASSWORD = "India@12345";
-      this.DB_DATABASE = "cms";
-      this.CASE_BASE_DIR = "/Applications/XAMPP/xamppfiles/htdocs/test/cases/";
-      this.UPLOAD_DIR = "/Applications/XAMPP/xamppfiles/htdocs/test/uploads/";
-    } 
+  this.DB_HOST = this.config.getOrThrow<string>('DB_HOST');
+  this.DB_USER = this.config.getOrThrow<string>('DB_USER');
+  this.DB_PORT = Number(this.config.getOrThrow<string>('DB_PORT'));
+  this.DB_PASSWORD = this.config.getOrThrow<string>('DB_PASSWORD');
 
-    //production configuration file
-  if (this.NODE_ENVIRONMENT == "production") {
-      this.NODE_ENVIRONMENT = "production";
-      this.DB_HOST = "72.61.229.100";
-      this.DB_USER = "rahul";
-      this.DB_PORT = 5432;
-      this.DB_PASSWORD = "India@12345";
-      this.DB_DATABASE = "ats";
-      this.CASE_BASE_DIR = "/Applications/XAMPP/xamppfiles/htdocs/test/cases/";
-      this.UPLOAD_DIR = "/Applications/XAMPP/xamppfiles/htdocs/test/uploads/";
-    }
+  this.DB_DATABASE =
+    this.NODE_ENVIRONMENT === 'production'
+      ? this.config.getOrThrow<string>('DB_DATABASE_PROD')
+      : this.config.getOrThrow<string>('DB_DATABASE');
   }
+
+ 
 
   successResponse = (result: any, message = "") => {
     return {

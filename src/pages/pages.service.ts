@@ -1,6 +1,6 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { DbService } from '../db/db.service'; // adjust path to your dbService
-import { CreatePageDto, UpdatePageDto } from './page.dto';
+import { CreatePageDto, UpdatePageDto,CreatePageSectionDto } from './page.dto';
 import { UtilService } from "../util/util.service";
 @Injectable()
 export class PageService {
@@ -120,4 +120,149 @@ export class PageService {
       throw error instanceof NotFoundException ? error : new InternalServerErrorException('Failed to delete page');
     }
   }
+
+  
+  async getPageBySlug(slug: string) {
+const query = `SELECT p.id, p.title, p.sub_title, p.slug, p.content, p.meta_title, p.meta_description, p.meta_keywords, p.og_title, p.og_description, p.og_image, p.status, p.created_at, p.updated_at, COALESCE(json_agg(json_build_object('id', ps.id, 'section_key', ps.section_key, 'title', ps.title, 'sub_title', ps.sub_title, 'meta', ps.meta, 'sort_order', ps.sort_order) ORDER BY ps.sort_order) FILTER (WHERE ps.id IS NOT NULL), '[]') AS sections FROM pages p LEFT JOIN page_sections ps ON ps.page_id = p.id AND ps.is_active = true WHERE p.slug = '${slug}' AND p.status = 'published' GROUP BY p.id;`;
+
+ const result = await this.dbService.execute(query);
+    if (result.length === 0) {
+        throw new NotFoundException(`Page with ID ${slug} not found`);
+      }
+      return this.utilService.successResponse(result[0], 'get page by id Successfully.');
+    } catch (error) {
+      console.error(`Error fetching page by ID  :`, error);
+      throw error instanceof NotFoundException ? error : new InternalServerErrorException('Failed to fetch page');
+    }
+
+
+
+   // getSectionsByPageId
+   async getSectionsByPageId(pageId: number) {
+  const query = `
+ SELECT
+  ps.id,
+  ps.page_id,
+  p.title AS page_name,
+  ps.section_key,
+  ps.title,
+  ps.sub_title,
+  ps.meta,
+  ps.sort_order,
+  ps.is_active,
+  ps.created_at,
+  ps.updated_at
+FROM page_sections ps
+INNER JOIN pages p ON p.id = ps.page_id
+WHERE ps.page_id = $1
+ORDER BY ps.sort_order ASC, ps.id ASC;`;
+
+  return this.dbService.executeQuery(query, [pageId]);
 }
+ 
+
+// Add a new section
+  async addSection(pageId: number, payload: any) {
+    const query = `
+      INSERT INTO page_sections 
+      (page_id, section_key, title, sub_title, meta, sort_order, is_active)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *;
+    `;
+    const values = [
+      pageId,
+      payload.section_key,
+      payload.title || null,
+      payload.sub_title || null,
+      payload.meta || null,
+      payload.sort_order || 0,
+      payload.is_active ?? true,
+    ];
+    return this.dbService.executeQuery(query, values);
+  }
+
+    // Update an existing section
+  // Update a section by ID (PATCH)
+  async updateSection(pageId: number,sectionId:number, payload: Partial<any>) {
+    // Build dynamic SQL to only update provided fields
+    const fields: string[] = [];
+    const values: any[] = [];
+    let idx = 1;
+
+    if (payload.section_key !== undefined) {
+      fields.push(`section_key = $${idx++}`);
+      values.push(payload.section_key);
+    }
+    if (payload.title !== undefined) {
+      fields.push(`title = $${idx++}`);
+      values.push(payload.title);
+    }
+    if (payload.sub_title !== undefined) {
+      fields.push(`sub_title = $${idx++}`);
+      values.push(payload.sub_title);
+    }
+    if (payload.meta !== undefined) {
+      fields.push(`meta = $${idx++}`);
+      values.push(payload.meta);
+    }
+    if (payload.sort_order !== undefined) {
+      fields.push(`sort_order = $${idx++}`);
+      values.push(payload.sort_order);
+    }
+    if (payload.is_active !== undefined) {
+      fields.push(`is_active = $${idx++}`);
+      values.push(payload.is_active);
+    }
+
+    if (fields.length === 0) return null;
+
+    // always update updated_at
+    fields.push(`updated_at = NOW()`);
+
+    const query = `
+      UPDATE page_sections
+      SET ${fields.join(', ')}
+      WHERE id = $${idx}
+      RETURNING *;
+    `;
+    values.push(sectionId);
+
+    const result = await this.dbService.executeQuery(query, values);
+    return result[0] || null;
+  }
+ async createSection(pageId: number, dto: CreatePageSectionDto) {
+  
+    const payload = [
+      { set: 'page_id', value: pageId },
+      { set: 'section_key', value: dto.section_key },
+      { set: 'title', value: dto.title ?? null },
+      { set: 'sub_title', value: dto.sub_title ?? null },
+      { set: 'meta', value: JSON.stringify(dto.meta ?? {}) },
+      { set: 'sort_order', value: dto.sort_order ?? 0 },
+      { set: 'is_active', value: dto.is_active ?? true },
+    ];
+
+    return this.dbService.insertData('page_sections', payload);
+  }
+
+ async deletePageSection(id: number) {
+  try {
+    const query = `
+      UPDATE page_sections
+      SET is_active = false,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING *;
+    `;
+
+    const values = [id];
+
+    const result = await this.dbService.executeQuery(query, values);
+    return result[0];
+  } catch (error) {
+    throw error;
+  }
+}
+}
+
+  

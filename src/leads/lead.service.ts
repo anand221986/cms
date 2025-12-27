@@ -6,12 +6,14 @@ import {
 import { DbService } from '../db/db.service';
 import { UtilService } from '../util/util.service';
 import { LeadActivityService } from './lead-activity.service';  // New service
-import { CreateLeadDto, UpdateLeadDto } from './lead.dto';
+import { CreateLeadDto, UpdateLeadDto,ContactLeadDto } from './lead.dto';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class LeadService {
   constructor(
     private readonly dbService: DbService,
+    private readonly emailService:EmailService,
     private readonly utilService: UtilService,
     private readonly leadActivityService: LeadActivityService,  // Injected service
   ) {}
@@ -200,5 +202,37 @@ async updateLead(leadId: number, dto: UpdateLeadDto) {
         ? error
         : new InternalServerErrorException('Failed to delete lead');
     }
+  }
+
+  async createContactLead(payload: ContactLeadDto) {
+    const query = `
+      INSERT INTO public.leads
+      (first_name, last_name, email, phone, company_name, role_to_hire, requirements, source, status)
+      VALUES
+      ($1,$2,$3,$4,$5,$6,$7,$8,'new')
+      RETURNING id, email, status, created_at;
+    `;
+
+    const values = [
+      payload.first_name,
+      payload.last_name,
+      payload.email,
+      payload.phone,
+      payload.company_name,
+      payload.role_to_hire,
+      payload.requirements,
+      payload.source,
+    ];
+
+    const  rows  = await this.dbService.executeQuery(query, values);
+
+    // await this.emailService.sendLeadNotification({
+    //   name: payload.first_name,
+    //   email: payload.email,
+    //   subject: 'testing',
+    //   phone: payload.phone,
+    //   message:  'testing',
+    // });
+    return rows[0];
   }
 }

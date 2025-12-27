@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsUrl, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsUrl, IsIn,IsObject,IsInt,IsBoolean } from 'class-validator';
 
 export class CreatePageDto {
   @IsString()
@@ -81,3 +81,28 @@ export class UpdatePageDto {
   @IsIn(['draft', 'published', 'archived'])
   status?: string;
 }
+
+export class CreatePageSectionDto {
+  @IsString()
+  section_key: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  sub_title?: string;
+
+  @IsOptional()
+  @IsObject()
+  meta?: Record<string, any>;
+    @IsOptional()
+  @IsInt()
+  sort_order?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  is_active?: boolean;
+}
+

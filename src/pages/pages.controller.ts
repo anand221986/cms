@@ -6,13 +6,16 @@ import {
   Param,
   Post,
   Put,
+  Patch,
   Delete,
   Res,
-  InternalServerErrorException
+  InternalServerErrorException,
+  ParseIntPipe
 } from "@nestjs/common";
 import { Response } from "express";
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam } from "@nestjs/swagger";
 import { PageService } from "./pages.service";
+import {CreatePageSectionDto } from './page.dto';
 
 @ApiTags("pages")
 @Controller("pages")
@@ -86,4 +89,76 @@ export class PagesController {
       throw new InternalServerErrorException('Failed to get page by id');
     }
   }
+
+  
+
+  @Get('slug/:slug')
+  async getPage(@Param('slug') slug: string) {
+    const page = await this.pagesService.getPageBySlug(slug);
+
+    return {
+      status: true,
+      data: page,
+    };
+  }
+//get section wise  by page Id
+ @Get(':pageId/sections')
+async getPageSections(@Param('pageId') pageId: number) {
+  const sections = await this.pagesService.getSectionsByPageId(pageId);
+  return {
+    status: true,
+    data: sections,
+  };
 }
+
+ @Post('pages/:pageId/sections')
+  async addSection(@Param('pageId') pageId: number, @Body() payload: any) {
+    const section = await this.pagesService.addSection(pageId, payload);
+    return { status: true, data: section };
+  }
+// PATCH /page-sections/:id
+  // Use this for partial updates (status, title, etc.)
+  @Patch('page-sections/:id')
+  async updateSection(
+    @Param('id') id: number,
+    @Body() payload: any
+  ) {
+    const updatedSection = await this.pagesService.updateSection(0,id, payload);
+    if (!updatedSection) {
+      return { status: false, message: 'No fields to update or section not found' };
+    }
+    return { status: true, data: updatedSection };
+  }
+
+  // PUT /page-sections/pages/:pageId/sections
+  // Use this for creating a new section
+  @Put('/:pageId/sections/:sectionId')
+  async createOrReplaceSection(
+    @Param('pageId') pageId: number,
+    @Param('sectionId') sectionId: number,
+    @Body() payload: any
+  ) {
+    const section = await this.pagesService.updateSection(pageId,sectionId, payload);
+    return { status: true, data: section };
+  }
+    @Post('/:pageId/sections')
+   async createPageSection(
+     @Param('pageId') pageId: number,
+    @Body() body: CreatePageSectionDto,
+  ) {
+    // return this.pagesService.createSection(pageId, body);
+       const updatedSection = await this.pagesService.addSection(pageId, body);
+    if (!updatedSection) {
+      return { status: false, message: 'No fields to update or section not found' };
+    }
+    return { status: true, data: updatedSection };
+  }
+   @Delete('page-sections/:id')
+  async deleteSection(
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.pagesService.deletePageSection(id);
+  }
+
+}
+

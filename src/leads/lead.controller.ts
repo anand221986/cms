@@ -12,7 +12,7 @@ import {
 
 } from '@nestjs/common';
 import { LeadService } from './lead.service';
-import { CreateLeadDto, UpdateLeadDto } from './lead.dto';
+import { CreateLeadDto, UpdateLeadDto,ContactLeadDto} from './lead.dto';
 import { ApiTags, ApiResponse } from '@nestjs/swagger';
 import { UtilService } from "../util/util.service";
 @ApiTags('leads')
@@ -61,4 +61,24 @@ export class LeadController {
         );
       }
     }
+    
+
+@Post('contact')
+async captureContactLead(@Body() payload: ContactLeadDto) {
+  try {
+    const lead = await this.leadService.createContactLead(payload);
+    return this.utilService.successResponse(
+      lead,
+      'Lead captured successfully.',
+    );
+  } catch (error) {
+    throw new HttpException(
+      {
+        message: 'Failed to capture lead',
+        error: error.message,
+      },
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
+  }
+}
 }

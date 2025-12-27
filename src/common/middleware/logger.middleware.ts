@@ -12,8 +12,8 @@ export class LoggerMiddleware implements NestMiddleware {
     res.on('finish', () => {
       const duration = Date.now() - start;
       const log = `${new Date().toISOString()} | ${req.method} ${req.originalUrl} | ${res.statusCode} | ${duration}ms\n`;
-
-      const logFilePath = path.join(__dirname, '../../../logs/response-time.log');
+      const logsDir = path.join(process.cwd(), 'logs');
+      const logFilePath = path.join(logsDir, 'response-time.log');
 
       // Append log to the file
       fs.appendFile(logFilePath, log, (err) => {
