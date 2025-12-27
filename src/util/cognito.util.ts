@@ -24,6 +24,12 @@
         throw new Error('Missing Cognito config values');
         }
         }
+formatPhoneE164(phone: string): string {
+  if (!phone) return phone;
+  if (phone.startsWith('+')) return phone;
+  return `+91${phone}`;
+}
+        
         async updateCognitoUser(
             email: string,
             updates: { name?: string; phone_number?: string; status?: number; email_verified?: boolean; phone_verified: boolean }
@@ -35,7 +41,7 @@
             }
 
             if (updates.phone_number) {
-                attributes.push({ Name: "phone_number", Value: updates.phone_number });
+                attributes.push({ Name: "phone_number", Value: this.formatPhoneE164(updates.phone_number) });
             }
 
             // ✅ status sync (stored as custom attribute)

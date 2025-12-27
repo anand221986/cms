@@ -294,18 +294,18 @@ export class UserService {
         throw new NotFoundException(`User with ID ${id} not found`);
       }
       try {
-        // 1. Update Cognito User Attributes
-        await this.cognitoUtil.updateCognitoUser(body.email!, {
-          name: `${body.first_name} ${body.last_name}`,
-          phone_number: body.phone,
-          email_verified: Boolean(body.status),  // 1 → true, 0 → false
-          phone_verified: Boolean(body.status),  // 1 → true, 0 → false
-        });
+        // // 1. Update Cognito User Attributes
+        // await this.cognitoUtil.updateCognitoUser(body.email!, {
+        //   name: `${body.first_name} ${body.last_name}`,
+        //   phone_number: body.phone,
+        //   email_verified: Boolean(body.status),  // 1 → true, 0 → false
+        //   phone_verified: Boolean(body.status),  // 1 → true, 0 → false
+        // });
 
         // 2. Assign User to Cognito Group
-        if (body.role) {
-          await this.cognitoUtil.assignUserToGroup(body.email!, body.role);
-        }
+        // if (body.role) {
+        //   await this.cognitoUtil.assignUserToGroup(body.email!, body.role);
+        // }
         console.log(`Cognito user ${body.email} updated successfully`);
       } catch (error) {
         console.error(`Failed to update Cognito user ${body.email}:`, error);

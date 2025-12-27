@@ -1,5 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsNumber,IsEmail
+} from 'class-validator';
+import { Type } from 'class-transformer';
 export class UpdateCustomerDto {
     @ApiProperty({ description: 'First name of the customer', type: String })
     first_name: string;
@@ -180,16 +187,46 @@ export class BulkUpdateCandidateDto {
   updates: UpdateActionDto[];
 }
 
-export class UpdateUserDto{
-  first_name:string;
-  last_name:string;
-  phone:string;
-  agency_id:number;
-  role:string;
-  email:string;
-  name:string;
-  status:number;
-  email_verified:boolean;
-  phone_verified:boolean;
+export class UpdateUserDto {
+  @IsOptional()
+  @IsString()
+  first_name?: string;
+
+  @IsOptional()
+  @IsString()
+  last_name?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsNumber()
+   @Type(() => Number)
+  agency_id?: number;
+
+  @IsOptional()
+  @IsString()
+  role?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsNumber()
+  status?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  email_verified?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  phone_verified?: boolean;
 }
 
