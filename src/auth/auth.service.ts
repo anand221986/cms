@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { SignUpDto } from './dto/signup.dto';
 import { DbService } from "../db/db.service";
 import * as bcrypt from 'bcrypt';
+
 import { SESv2Client, CreateEmailIdentityCommand, GetEmailIdentityCommand } from "@aws-sdk/client-sesv2";
 import {
   CognitoIdentityProviderClient,
@@ -192,47 +193,96 @@ export class AuthService {
     }
   }
 
-  async signIn(request: { email: string; password: string }): Promise<any> {
-    const { email, password } = request;
-    const user = await this.dbService.execute(`select id,first_name,last_name,agency_id,status from users where email='${email}'`); // implement this method
-    if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
-    // 2. Check if user is active
-    if (user[0]?.status !== 1) {
-      throw new UnauthorizedException('User is not active');
-    }
-    const secretHash = this.utilService.generateSecretHash(email, this.clientId, this.clientSecret);
-    const command = new InitiateAuthCommand({
-      AuthFlow: 'USER_PASSWORD_AUTH',
-      ClientId: this.clientId,
-      AuthParameters: {
-        USERNAME: email,
-        PASSWORD: password,
-        SECRET_HASH: secretHash,
-      },
-    });
-    try {
-      const response = await this.cognitoClient.send(command);
-      const authResult = response.AuthenticationResult;
-      if (!authResult) {
-        throw new UnauthorizedException('Authentication failed');
-      }
-      const { IdToken, AccessToken, RefreshToken } = authResult;
-      return {
-        accessToken: AccessToken,
-        idToken: IdToken,
-        refreshToken: RefreshToken,
-        agency_id: Number(user[0].agency_id),
-        id: Number(user[0].id),
+ async signIn(
+  request: { email: string; password: string },
+): Promise<any> {
+  const { email, password } = request;
 
-      };
+   // 1. Fetch user from DB
+   const users = await this.dbService.execute(`SELECT
+      id,
+      first_name,
+      last_name,
+      email,
+      password,
+      agency_id,
+      status,role
+    FROM users
+    WHERE email = '${email}'
+    LIMIT 1
+  `);
 
-    } catch (err) {
-      console.error('Cognito sign-in error:', err);
-      throw new UnauthorizedException('Invalid email or password', err);
-    }
+ 
+  if (!users || users.length === 0) {
+    throw new UnauthorizedException('Invalid email or password');
   }
+
+  const user = users[0];
+
+  // 2. Check if user is active
+  if (user.status !== 1) {
+    throw new UnauthorizedException('User is not active');
+  }
+
+  // ----------------------------------------------------
+  // ❌ Cognito logic intentionally commented / removed
+  // ----------------------------------------------------
+  // const secretHash = this.utilService.generateSecretHash(
+  //   email,
+  //   this.clientId,
+  //   this.clientSecret,
+  // );
+  // const command = new InitiateAuthCommand({
+  //   AuthFlow: 'USER_PASSWORD_AUTH',
+  //   ClientId: this.clientId,
+  //   AuthParameters: {
+  //     USERNAME: email,
+  //     PASSWORD: password,
+  //     SECRET_HASH: secretHash,
+  //   },
+  // });
+  // ----------------------------------------------------
+
+  // 3. Verify password
+  const isPasswordValid = await bcrypt.compare(
+    password,
+    user.password,
+  );
+const hash = await bcrypt.hash('Admin@123', 10);
+console.log(hash);
+  if (!isPasswordValid) {
+    throw new UnauthorizedException('Invalid email or password1');
+  }
+
+  // 4. JWT payload
+  const payload = {
+    sub: user.id,
+    email: user.email,
+    role:user.role,
+    agency_id: user.agency_id,
+  };
+
+  // 5. Generate tokens
+  const accessToken = this.jwtService.sign(payload, {
+    secret: process.env.JWT_SECRET,
+    expiresIn: '1h',
+  });
+
+  const refreshToken = this.jwtService.sign(payload, {
+    secret: process.env.JWT_REFRESH_SECRET,
+    expiresIn: '7d',
+  });
+
+  // 6. Response
+  return {
+    accessToken,
+    refreshToken,
+    agency_id: Number(user.agency_id),
+    role:user.role,
+    id: Number(user.id),
+  };
+}
+
 
   async forgotPassword(email: string): Promise<any> {
     const secretHash = this.utilService.generateSecretHash(email, this.clientId, this.clientSecret);

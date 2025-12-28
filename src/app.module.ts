@@ -1,71 +1,75 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { JwtModule, JwtService } from '@nestjs/jwt';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { join } from 'path';
 
+/* Controllers */
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
-
 import { CommonController } from './common/common.controller';
-import { CommonService } from './common/common.service';
-
+import { AuthController } from './auth/auth.controller';
+import { UserController } from './user/user.controller';
+import { SettingsController } from './setting/setting.controller';
+import { PagesController } from './pages/pages.controller';
+import { TestimonialsController } from './testimonial/testimonials.controller';
+import { BlogsController } from './blogs/blogs.controller';
+import { LeadController } from './leads/lead.controller';
+import { TenantsController } from './tenants/tenants.controller';
+import { MenuController } from './menu/menu.controller';
+import { WebsiteSettingsController } from './website/website-settings.controller';
 import { EmailController } from './email/mail.controller';
-import { MailService } from './email/mail.service';
-import { EmailService } from './email/email.service';
 
+/* Services */
+import { AppService } from './app.service';
+import { CommonService } from './common/common.service';
+import { AuthService } from './auth/auth.service';
+import { UserService } from './user/user.service';
 import { UtilService } from './util/util.service';
 import { DbService } from './db/db.service';
 import { ErrorLoggerService } from './error-logger/error-logger.service';
 import { AesService } from './services/aes/aes.service';
-
-import { AuthController } from './auth/auth.controller';
-import { AuthService } from './auth/auth.service';
-import { JwtService } from '@nestjs/jwt';
-import { UserController } from './user/user.controller';
-import { UserService } from './user/user.service';
-
-import { SettingsController } from './setting/setting.controller';
+import { EmailService } from './email/email.service';
+import { MailService } from './email/mail.service';
 import { SettingService } from './setting/setting.service';
-
-import { PagesController } from './pages/pages.controller';
 import { PageService } from './pages/pages.service';
-
-import { TestimonialsController } from './testimonial/testimonials.controller';
 import { TestimonialService } from './testimonial/testimonials.service';
-
-import { BlogsController } from './blogs/blogs.controller';
 import { BlogsService } from './blogs/blogs.service';
-
-import { LeadController } from './leads/lead.controller';
 import { LeadService } from './leads/lead.service';
 import { LeadActivityService } from './leads/lead-activity.service';
-
 import { ClusterService } from './services/cluster/cluster.service';
-
-import { TenantsController } from './tenants/tenants.controller';
 import { TenantsService } from './tenants/tenants.service';
-
-import { MenuController } from './menu/menu.controller';
 import { MenuService } from './menu/menu.service';
-
-import { WebsiteSettingsController } from './website/website-settings.controller';
 import { WebsiteSettingsService } from './website/website-settings.service';
-
-import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { WhatsappService } from './whatsapp/whatsapp.service';
-
 import { IMailService } from './util/mail.service';
 import { GmailImapService } from './util/gmail-imap.service';
 
+/* Modules */
+import { WhatsappModule } from './whatsapp/whatsapp.module';
+
+/* Middleware */
 import { ApiMiddleware } from './middleware/api.middleware';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
-import { join } from 'path';
+
 @Module({
   imports: [
-    ScheduleModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     WhatsappModule,
+
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get<string>('JWT_SECRET'),
+        signOptions: {
+          expiresIn: config.get<string>('JWT_EXPIRES_IN') || '15m',
+        },
+      }),
+    }),
+
     MailerModule.forRoot({
       transport: {
         host: 'smtp.gmail.com',
@@ -80,19 +84,18 @@ import { join } from 'path';
         from: '"No Reply" <youremail@gmail.com>',
       },
       template: {
-        //  dir: join(__dirname, 'email', 'templates'),
-        dir: join(process.cwd(), 'src','email', 'templates'),
-        //dir: process.cwd() + '/templates',
+        dir: join(process.cwd(), 'src', 'email', 'templates'),
         adapter: new HandlebarsAdapter(),
         options: { strict: true },
       },
     }),
   ],
+
   controllers: [
     AppController,
     CommonController,
-    UserController,
     AuthController,
+    UserController,
     SettingsController,
     PagesController,
     TestimonialsController,
@@ -103,6 +106,7 @@ import { join } from 'path';
     WebsiteSettingsController,
     EmailController,
   ],
+
   providers: [
     AppService,
     CommonService,
@@ -114,10 +118,8 @@ import { join } from 'path';
     JwtService,
     UserService,
     EmailService,
+    MailService,
     SettingService,
-    WhatsappService,
-    IMailService,
-    GmailImapService,
     PageService,
     TestimonialService,
     BlogsService,
@@ -127,7 +129,9 @@ import { join } from 'path';
     TenantsService,
     MenuService,
     WebsiteSettingsService,
-    MailService,
+    WhatsappService,
+    IMailService,
+    GmailImapService,
   ],
 })
 export class AppModule implements NestModule {
