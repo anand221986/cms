@@ -332,6 +332,74 @@ export class UserService {
       throw new InternalServerErrorException('Failed to update user');
     }
   }
+
+  // create user :
+ async createUser(req) {
+  try {
+    /* ===================== CHECK EMAIL ===================== */
+    const existingEmail = await this.getUserByEmail(req.email);
+    if (existingEmail) {
+      return this.utilService.failResponse("Email already exists");
+    }
+
+    /* ===================== CHECK PHONE ===================== */
+    if (req.phone) {
+      const existingPhone = await this.getUserByPhone(req.phone);
+      if (existingPhone) {
+        return this.utilService.failResponse("Phone number already exists");
+      }
+    }
+
+    /* ===================== HASH PASSWORD ===================== */
+    const hashedPassword = req.password
+      ? await bcrypt.hash(req.password, 12)
+      : null;
+
+    /* ===================== PREPARE INSERT DATA ===================== */
+    const setData: { set: string; value: any }[] = [];
+    setData.push(this.utilService.getInsertObj("first_name", req.first_name));
+    setData.push(this.utilService.getInsertObj("last_name", req.last_name));
+    setData.push(this.utilService.getInsertObj("email", req.email));
+    setData.push(this.utilService.getInsertObj("phone", req.phone || null));
+    if (hashedPassword) {
+      setData.push(this.utilService.getInsertObj("password", hashedPassword));
+    }
+    setData.push(this.utilService.getInsertObj("address", req.address || null));
+    setData.push(this.utilService.getInsertObj("state", req.state || null));
+    setData.push(this.utilService.getInsertObj("pin_code", req.pin_code || null));
+
+    setData.push(this.utilService.getInsertObj("role", req.role || "editor"));
+    setData.push(this.utilService.getInsertObj("status", req.status ?? 1));
+    setData.push(this.utilService.getInsertObj("agency_id", req.agency_id || null));
+    setData.push(
+      this.utilService.getInsertObj(
+        "created_dt",
+        this.utilService.getMomentDT()
+      )
+    );
+    /* ===================== INSERT INTO DB ===================== */
+    const insertedUserId = await this.dbService.insertData("users", setData);
+
+    if (!insertedUserId) {
+      return this.utilService.failResponse(
+        "User registration failed. Please try again."
+      );
+    }
+
+    /* ===================== SUCCESS ===================== */
+    return this.utilService.successResponse(
+      { id: insertedUserId },
+      "User created successfully"
+    );
+
+  } catch (error) {
+    console.error("Create User Error:", error);
+    return this.utilService.failResponse(
+      "Something went wrong while creating user"
+    );
+  }
+}
+
 }
 
 

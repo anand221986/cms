@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsNotEmpty,
@@ -6,7 +7,7 @@ import {
   IsString,
   IsNumber,IsEmail
 } from 'class-validator';
-import { Type } from 'class-transformer';
+ 
 export class UpdateCustomerDto {
     @ApiProperty({ description: 'First name of the customer', type: String })
     first_name: string;
@@ -190,6 +191,10 @@ export class BulkUpdateCandidateDto {
 export class UpdateUserDto {
   @IsOptional()
   @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
   first_name?: string;
 
   @IsOptional()
@@ -201,32 +206,56 @@ export class UpdateUserDto {
   phone?: string;
 
   @IsOptional()
-  @IsNumber()
-   @Type(() => Number)
-  agency_id?: number;
+  @IsEmail()
+  email?: string;
 
   @IsOptional()
   @IsString()
   role?: string;
 
   @IsOptional()
-  @IsEmail()
-  email?: string;
-
-  @IsOptional()
-  @IsString()
-  name?: string;
+  @IsNumber()
+  @Type(() => Number)
+  agency_id?: number;
 
   @IsOptional()
   @IsNumber()
   status?: number;
-
-  @IsOptional()
-  @IsBoolean()
-  email_verified?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  phone_verified?: boolean;
 }
+export class CreateUserDto {
+  @IsNotEmpty()
+  @IsString()
+  first_name: string;
+
+  @IsNotEmpty()
+  @IsString()
+  last_name: string;
+
+  @IsEmail()
+  email: string;
+
+  @IsOptional()
+  phone?: string;
+
+  @IsOptional()
+  address?: string;
+
+  @IsOptional()
+  @IsNumber()
+  pin_code?: number;
+
+  @IsOptional()
+  state?: string;
+
+  @IsNotEmpty()
+  role: string;
+
+  @IsNotEmpty()
+  @IsNumber()
+  status: number;
+
+  @IsOptional()
+  agency_id?: string;
+}
+
 

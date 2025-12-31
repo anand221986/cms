@@ -12,7 +12,7 @@ import {
 import { Response } from "express";
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam } from "@nestjs/swagger";
 import { UserService } from "./user.service";
-import { UpdateUserDto } from './user.dto';
+import { UpdateUserDto,CreateUserDto } from './user.dto';
 import {
   CreateCustomerDto,
   UpdateCustomerDto,
@@ -88,13 +88,13 @@ async loginAdmin(@Body() body: LoginAdminDto, @Res() res: Response) {
 
 
 
-  @Post()
-  @ApiOperation({ summary: "Create a new user" })
-  @ApiBody({ type: CreateCustomerDto })
-  async createUser(@Body() body: CreateCustomerDto, @Res() res: Response) {
-    // const user = await this.service.createUser(body);
-    res.status(HttpStatus.CREATED).json({ message: "User created" });
-  }
+  // @Post()
+  // @ApiOperation({ summary: "Create a new user" })
+  // @ApiBody({ type: CreateCustomerDto })
+  // async createUser(@Body() body: CreateCustomerDto, @Res() res: Response) {
+  //   const user = await this.service.createUser(body);
+  //   res.status(HttpStatus.CREATED).json({ message: "User created" });
+  // }
 
   @Get("getAllUsers")
   @ApiOperation({ summary: "Get all users" })
@@ -193,5 +193,9 @@ console.log(body)
         error: error.message,
       });
     }
+  }
+   @Post('createUser')
+  async createUser(@Body() body: CreateUserDto) {
+    return this.service.createUser(body);
   }
 }

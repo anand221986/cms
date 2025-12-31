@@ -5,6 +5,7 @@ import { UtilService } from '../util/util.service';
 import { DbService } from '../db/db.service';
 import * as csv from 'csv-parser';
 import { Readable } from 'stream';
+import * as fs from 'fs';
 
 @Injectable()
 export class MailService {
@@ -91,28 +92,34 @@ async parseCsv(buffer: Buffer): Promise<any[]> {
       return data[key.trim()] ?? '';
     });
   }
-  async getTemplate(templateId?: number) {
-    let query = `SELECT id, name,subject,body,created_at FROM mail_templates`;
-    const values: any[] = [];
-    if (templateId) {
-      query += ` WHERE id = $1 LIMIT 1`;
-      values.push(templateId);
-    } else {
-      query += ` ORDER BY created_at DESC`;
-    }
-    console.log(query)
-    const result = await this.dbService.executeQuery(query);
-    if (templateId && !result.length) {
-      throw new NotFoundException(
-        `Mail template with id ${templateId} does not exist`,
-      );
-    }
-    return result;
+async getTemplate(templateId?: number) {
+  let query = `
+    SELECT id, name, subject, body, created_at
+    FROM mail_templates
+  `;
 
-    // If ID is passed → return single object
-    // If no ID → return array
-    return templateId ? result[0] : result;
+  const values: any[] = [];
+
+  if (templateId !== undefined) {
+    query += ` WHERE id = $1 LIMIT 1`;
+    values.push(templateId);
+  } else {
+    query += ` ORDER BY created_at DESC`;
   }
+
+  const result = await this.dbService.executeQuery(query, values);
+
+  if (templateId !== undefined && !result.length) {
+    throw new NotFoundException(
+      `Mail template with id ${templateId} does not exist`,
+    );
+  }
+
+  // ✔ If ID → return object
+  // ✔ If no ID → return array
+  return templateId !== undefined ? result[0] : result;
+}
+
 
   // 📌 Delete templates
   async deleteTemplates(id: number) {
@@ -203,77 +210,89 @@ async parseCsv(buffer: Buffer): Promise<any[]> {
   }
 
   // Process CSV and track job in mail_merge_jobs
-async processCsvFile(file: Express.Multer.File, templateId: number) {
-  // 1️⃣ Parse CSV
-  const rows = await this.parseCsv(file.buffer);
+ 
+async processCsvFile(
+  file: Express.Multer.File,
+  templateId: number,
+) {
+  // 1️⃣ Read CSV file from disk as Buffer
+  if (!file?.path) {
+    throw new Error('Uploaded file path not found');
+  }
+
+  const buffer = fs.readFileSync(file.path);
+
+  // 2️⃣ Parse CSV
+  const rows = await this.parseCsv(buffer);
   const total = rows.length;
+
   if (!total) {
     throw new Error('CSV file is empty');
   }
-  // 2️⃣ Fetch template
+
+  // 3️⃣ Fetch template
   const template = await this.getTemplate(templateId);
-  // 3️⃣ Create mail merge job
-  const jobResult = await this.dbService.executeQuery(
+
+  // 4️⃣ Create mail merge job
+  const [job] = await this.dbService.executeQuery(
     `
     INSERT INTO mail_merge_jobs (template_id, total, processed, status)
     VALUES ($1, $2, 0, 'PROCESSING')
     RETURNING id;
     `,
-    [templateId, total]
+    [templateId, total],
   );
-
-  const jobId = jobResult[0].id;
 
   let processed = 0;
 
-  // 4️⃣ Process each row
+  // 5️⃣ Process each CSV row
   for (const row of rows) {
     try {
       const subject = this.replaceTemplate(template.subject, row);
       const body = this.replaceTemplate(template.body, row);
+      // await this.mailerService.sendMail({
+      //   to: row.email,
+      //   subject,
+      //   html: body,
+      // });
 
-      await this.mailerService.sendMail({
-        to: row.email,
-        subject,
-        html: body,
-      });
+      // processed++;
 
-      processed++;
-
-      // Update processed count
       await this.dbService.executeQuery(
         `
         UPDATE mail_merge_jobs
         SET processed = $1
         WHERE id = $2;
         `,
-        [processed, jobId]
+        [processed, job.id],
       );
-
-      // OPTIONAL: log per-recipient success
-    } catch (err) {
-      // OPTIONAL: log per-recipient failure
-      console.error(`Mail failed for ${row.email}`, err);
+    } catch (error) {
+      console.error(`Mail failed for ${row.email}`, error);
+      // Optional: store failed rows in DB
     }
   }
 
-  // 5️⃣ Mark job as completed
+  // 6️⃣ Mark job as completed
   await this.dbService.executeQuery(
     `
     UPDATE mail_merge_jobs
     SET status = 'COMPLETED'
     WHERE id = $1;
     `,
-    [jobId]
+    [job.id],
   );
+
+  // 7️⃣ Optional cleanup (recommended)
+  fs.unlink(file.path, () => {});
 
   return {
     message: 'Mail merge completed',
-    jobId,
+    jobId: job.id,
     total,
     processed,
   };
 }
+
 
 async createJob(dto: CreateMailMergeJobDto) {
   const query = `
@@ -315,6 +334,24 @@ JOIN mail_templates mt
     return result;
 
  
+  }
+
+  
+
+   async deleteJobs(id: number) {
+    try {
+      const query = 'DELETE FROM mail_merge_jobs WHERE id = $1 RETURNING *';
+      const result = await this.dbService.executeQuery(query, [id]);
+      if (result.length === 0) {
+        throw new NotFoundException(`mail Merge Jobs with ID ${id} not found`);
+      }
+      return this.utilService.successResponse(`mail Merge with ID ${id} deleted successfully.`);
+    } catch (error) {
+      console.error(`Error deleting mail Merge with ID ${id}:`, error);
+      throw error instanceof NotFoundException
+        ? error
+        : new InternalServerErrorException('Failed to delete mail Merge');
+    }
   }
  
 

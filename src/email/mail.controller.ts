@@ -167,4 +167,19 @@ create(@Body() dto: CreateEmailTemplateDto) {
     };
   }
 
+ 
+  @Delete('merge-jobs/:id')
+  @ApiResponse({ status: 200, description: 'Merge Jobs deleted successfully.' })
+  @ApiResponse({ status: 404, description: 'Jobs not found.' })
+  async removeJob(@Param('id') id: string) {
+    try {
+      return await this.mailService.deleteJobs(+id);
+    } catch (error) {
+      throw new HttpException(
+        { message: 'Failed to delete blog', error: error.message },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+  }
+
 }
