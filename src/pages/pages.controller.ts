@@ -10,12 +10,18 @@ import {
   Delete,
   Res,
   InternalServerErrorException,
-  ParseIntPipe
+  ParseIntPipe,
+  UploadedFile,
+  UseInterceptors,
+   ValidationPipe
 } from "@nestjs/common";
 import { Response } from "express";
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam } from "@nestjs/swagger";
 import { PageService } from "./pages.service";
-import {CreatePageSectionDto } from './page.dto';
+import {CreatePageSectionDto,AddSectionDto } from './page.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 
 @ApiTags("pages")
 @Controller("pages")
@@ -141,18 +147,45 @@ async getPageSections(@Param('pageId') pageId: number) {
     const section = await this.pagesService.updateSection(pageId,sectionId, payload);
     return { status: true, data: section };
   }
-    @Post('/:pageId/sections')
-   async createPageSection(
-     @Param('pageId') pageId: number,
-    @Body() body: CreatePageSectionDto,
-  ) {
-    // return this.pagesService.createSection(pageId, body);
-       const updatedSection = await this.pagesService.addSection(pageId, body);
-    if (!updatedSection) {
-      return { status: false, message: 'No fields to update or section not found' };
-    }
-    return { status: true, data: updatedSection };
-  }
+  //   @Post('/:pageId/sections')
+  //  async createPageSection(
+  //    @Param('pageId') pageId: number,
+  //   @Body() body: CreatePageSectionDto,
+  // ) {
+  //   // return this.pagesService.createSection(pageId, body);
+  //      const updatedSection = await this.pagesService.addSection(pageId, body);
+  //   if (!updatedSection) {
+  //     return { status: false, message: 'No fields to update or section not found' };
+  //   }
+  //   return { status: true, data: updatedSection };
+  // }
+
+  @Post('/:pageId/sections')
+@UseInterceptors(FileInterceptor('image', {
+  storage: diskStorage({
+    destination: './uploads/sections',
+    filename: (req, file, cb) => {
+      const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      cb(null, uniqueName + extname(file.originalname));
+    },
+  }),
+}))
+async createPageSection(
+  @Param('pageId') pageId: number,
+  @UploadedFile() image: Express.Multer.File,
+  @Body(new ValidationPipe({ transform: true })) payload: AddSectionDto,
+) {
+  // parse meta manually if string
+  const meta = typeof payload.meta === 'string' ? JSON.parse(payload.meta) : payload.meta;
+
+  return this.pagesService.addSection(pageId, {
+    ...payload,
+    meta,
+    imagePath: image?.filename || null,
+  });
+}
+
+
    @Delete('page-sections/:id')
   async deleteSection(
     @Param('id', ParseIntPipe) id: number,

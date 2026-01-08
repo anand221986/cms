@@ -1,5 +1,5 @@
-import { IsString, IsOptional, IsUrl, IsIn,IsObject,IsInt,IsBoolean } from 'class-validator';
-
+import { IsString, IsOptional, IsUrl, IsIn,IsObject,IsInt,IsBoolean,IsNumber } from 'class-validator';
+import { Type } from 'class-transformer';
 export class CreatePageDto {
   @IsString()
   title: string;
@@ -104,5 +104,33 @@ export class CreatePageSectionDto {
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
+}
+
+
+export class AddSectionDto {
+  @IsString()
+   @IsOptional()
+section_key?: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  sub_title?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  sort_order?: number;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  is_active?: boolean;
+
+  @IsOptional()
+  meta?: any; // could be string from FormData
 }
 

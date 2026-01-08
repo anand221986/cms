@@ -52,6 +52,8 @@ import { WhatsappModule } from './whatsapp/whatsapp.module';
 /* Middleware */
 import { ApiMiddleware } from './middleware/api.middleware';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
+import { EmailSignatureController } from './email-signature/email-signature.controller';
+import { EmailSignatureService } from './email-signature/email-signature.service';
 
 @Module({
   imports: [
@@ -105,6 +107,7 @@ import { LoggerMiddleware } from './common/middleware/logger.middleware';
     MenuController,
     WebsiteSettingsController,
     EmailController,
+    EmailSignatureController
   ],
 
   providers: [
@@ -132,6 +135,7 @@ import { LoggerMiddleware } from './common/middleware/logger.middleware';
     WhatsappService,
     IMailService,
     GmailImapService,
+    EmailSignatureService
   ],
 })
 export class AppModule implements NestModule {

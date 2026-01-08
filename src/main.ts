@@ -29,13 +29,13 @@ async function bootstrap() {
   app.use(helmet());
 
   // Optional: global validation pipe
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  // app.useGlobalPipes(
+  //   new ValidationPipe({
+  //     whitelist: true,
+  //     forbidNonWhitelisted: true,
+  //     transform: true,
+  //   }),
+  // );
 
   // -------------------- STATIC FILES --------------------
   // Serve uploads folder

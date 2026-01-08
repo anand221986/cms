@@ -151,7 +151,8 @@ const query = `SELECT p.id, p.title, p.sub_title, p.slug, p.content, p.meta_titl
   ps.sort_order,
   ps.is_active,
   ps.created_at,
-  ps.updated_at
+  ps.updated_at,
+  ps.image
 FROM page_sections ps
 INNER JOIN pages p ON p.id = ps.page_id
 WHERE ps.page_id = $1
@@ -162,24 +163,59 @@ ORDER BY ps.sort_order ASC, ps.id ASC;`;
  
 
 // Add a new section
+  // async addSection(pageId: number, payload: any) {
+  //   const query = `
+  //     INSERT INTO page_sections 
+  //     (page_id, section_key, title, sub_title, meta, sort_order, is_active)
+  //     VALUES ($1, $2, $3, $4, $5, $6, $7)
+  //     RETURNING *;
+  //   `;
+  //   const values = [
+  //     pageId,
+  //     payload.section_key,
+  //     payload.title || null,
+  //     payload.sub_title || null,
+  //     payload.meta || null,
+  //     payload.sort_order || 0,
+  //     payload.is_active ?? true,
+  //   ];
+  //   return this.dbService.executeQuery(query, values);
+  // }
+
   async addSection(pageId: number, payload: any) {
-    const query = `
-      INSERT INTO page_sections 
-      (page_id, section_key, title, sub_title, meta, sort_order, is_active)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING *;
-    `;
-    const values = [
-      pageId,
-      payload.section_key,
-      payload.title || null,
-      payload.sub_title || null,
-      payload.meta || null,
-      payload.sort_order || 0,
-      payload.is_active ?? true,
-    ];
-    return this.dbService.executeQuery(query, values);
-  }
+  const query = `
+    INSERT INTO page_sections
+    (
+      page_id,
+      section_key,
+      title,
+      sub_title,
+      meta,
+      image,
+      sort_order,
+      is_active
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    RETURNING *;
+  `;
+
+  console.log(payload,'payload')
+
+  const values = [
+    pageId,
+    payload.section_key,
+    payload.title || null,
+    payload.sub_title || null,
+    payload.meta ? JSON.stringify(payload.meta) : null, // ✅ store JSON
+    payload.imagePath,                                 // ✅ image filename
+    Number(payload.sort_order) || 0,
+    payload.is_active === 'true' || payload.is_active === true,
+  ];
+  
+
+  return this.dbService.executeQuery(query, values);
+}
+
 
     // Update an existing section
   // Update a section by ID (PATCH)
@@ -247,13 +283,18 @@ ORDER BY ps.sort_order ASC, ps.id ASC;`;
 
  async deletePageSection(id: number) {
   try {
+    // const query = `
+    //   UPDATE page_sections
+    //   SET is_active = false,
+    //       updated_at = NOW()
+    //   WHERE id = $1
+    //   RETURNING *;
+    // `;
     const query = `
-      UPDATE page_sections
-      SET is_active = false,
-          updated_at = NOW()
-      WHERE id = $1
-      RETURNING *;
-    `;
+  DELETE FROM page_sections
+  WHERE id = $1
+  RETURNING *;
+`;
 
     const values = [id];
 

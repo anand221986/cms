@@ -60,7 +60,7 @@ export class WebsiteSettingsService {
 
         fs.writeFileSync(filePath, logo.buffer);
 
-        logoUrl = `http://72.61.229.100:3001/uploads/${fileName}`;
+        logoUrl = `http://72.61.229.100/uploads/${fileName}`;
       }
 
       /* ---------- UPSERT SETTINGS ---------- */
