@@ -123,7 +123,7 @@ export class PageService {
 
   
   async getPageBySlug(slug: string) {
-const query = `SELECT p.id, p.title, p.sub_title, p.slug, p.content, p.meta_title, p.meta_description, p.meta_keywords, p.og_title, p.og_description, p.og_image, p.status, p.created_at, p.updated_at, COALESCE(json_agg(json_build_object('id', ps.id, 'section_key', ps.section_key, 'title', ps.title, 'sub_title', ps.sub_title, 'meta', ps.meta, 'sort_order', ps.sort_order) ORDER BY ps.sort_order) FILTER (WHERE ps.id IS NOT NULL), '[]') AS sections FROM pages p LEFT JOIN page_sections ps ON ps.page_id = p.id AND ps.is_active = true WHERE p.slug = '${slug}' AND p.status = 'published' GROUP BY p.id;`;
+const query = `SELECT p.id, p.title, p.sub_title, p.slug, p.content, p.meta_title, p.meta_description, p.meta_keywords, p.og_title, p.og_description, p.og_image, p.status, p.created_at, p.updated_at, COALESCE(json_agg(json_build_object('id', ps.id, 'section_key', ps.section_key, 'title', ps.title, 'sub_title', ps.sub_title, 'meta', ps.meta, 'sort_order', ps.sort_order,'images', ps.images,'image', ps.image  ) ORDER BY ps.sort_order) FILTER (WHERE ps.id IS NOT NULL), '[]') AS sections FROM pages p LEFT JOIN page_sections ps ON ps.page_id = p.id AND ps.is_active = true WHERE p.slug = '${slug}' AND p.status = 'published' GROUP BY p.id;`;
 
  const result = await this.dbService.execute(query);
     if (result.length === 0) {
@@ -152,7 +152,8 @@ const query = `SELECT p.id, p.title, p.sub_title, p.slug, p.content, p.meta_titl
   ps.is_active,
   ps.created_at,
   ps.updated_at,
-  ps.image
+  ps.image,
+  ps.images
 FROM page_sections ps
 INNER JOIN pages p ON p.id = ps.page_id
 WHERE ps.page_id = $1
@@ -182,7 +183,43 @@ ORDER BY ps.sort_order ASC, ps.id ASC;`;
   //   return this.dbService.executeQuery(query, values);
   // }
 
-  async addSection(pageId: number, payload: any) {
+//   async addSection(pageId: number, payload: any) {
+//   const query = `
+//     INSERT INTO page_sections
+//     (
+//       page_id,
+//       section_key,
+//       title,
+//       sub_title,
+//       meta,
+//       image,
+//       sort_order,
+//       is_active
+//     )
+//     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+//     RETURNING *;
+//   `;
+
+//   console.log(payload,'payload')
+
+//   const values = [
+//     pageId,
+//     payload.section_key,
+//     payload.title || null,
+//     payload.sub_title || null,
+//     payload.meta ? JSON.stringify(payload.meta) : null, // ✅ store JSON
+//     payload.imagePath,                                 // ✅ image filename
+//     Number(payload.sort_order) || 0,
+//     payload.is_active === 'true' || payload.is_active === true,
+//   ];
+  
+
+//   return this.dbService.executeQuery(query, values);
+// }
+
+async addSection(pageId: number, payload: any) {
+
+  console.log(payload);
   const query = `
     INSERT INTO page_sections
     (
@@ -192,29 +229,30 @@ ORDER BY ps.sort_order ASC, ps.id ASC;`;
       sub_title,
       meta,
       image,
+      images,
       sort_order,
       is_active
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     RETURNING *;
   `;
-
-  console.log(payload,'payload')
 
   const values = [
     pageId,
     payload.section_key,
     payload.title || null,
     payload.sub_title || null,
-    payload.meta ? JSON.stringify(payload.meta) : null, // ✅ store JSON
-    payload.imagePath,                                 // ✅ image filename
+    payload.meta ? JSON.stringify(payload.meta) : null,
+    payload.imagePath || null,                       // single image
+    // payload.imagesPaths && payload.imagesPaths.length > 0 ? JSON.stringify(payload.imagesPaths) : null, // multiple images,
+    payload.imagesPaths?.length ? payload.imagesPaths : null,
     Number(payload.sort_order) || 0,
     payload.is_active === 'true' || payload.is_active === true,
   ];
-  
 
   return this.dbService.executeQuery(query, values);
 }
+
 
 
     // Update an existing section
@@ -249,6 +287,10 @@ ORDER BY ps.sort_order ASC, ps.id ASC;`;
       fields.push(`is_active = $${idx++}`);
       values.push(payload.is_active);
     }
+    if (payload.imagePath !== undefined) {
+  fields.push(`image = $${idx++}`);
+  values.push(payload.imagePath);
+}
 
     if (fields.length === 0) return null;
 

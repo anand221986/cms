@@ -84,19 +84,47 @@ export class BlogsController {
     }
   }
 
+  // @Put(':id')
+  // @ApiResponse({ status: 200, description: 'Blog updated successfully.' })
+  // @ApiResponse({ status: 404, description: 'Blog not found.' })
+  // async update(@Param('id') id: string, @Body() dto: UpdateBlogDto) {
+  //   try {
+  //     console.log('test the finish',id)
+  //     console.log(dto)
+  //     return await this.blogsService.updateBlog(+id, dto);
+  //   } catch (error) {
+  //     throw new HttpException(
+  //       { message: 'Failed to update blog', error: error.message },
+  //       HttpStatus.BAD_REQUEST,
+  //     );
+  //   }
+  // }
+
+
   @Put(':id')
-  @ApiResponse({ status: 200, description: 'Blog updated successfully.' })
-  @ApiResponse({ status: 404, description: 'Blog not found.' })
-  async update(@Param('id') id: string, @Body() dto: UpdateBlogDto) {
-    try {
-      return await this.blogsService.updateBlog(+id, dto);
-    } catch (error) {
-      throw new HttpException(
-        { message: 'Failed to update blog', error: error.message },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
+@ApiConsumes('multipart/form-data')
+@UseInterceptors(
+  FileInterceptor('image', {
+    storage: diskStorage({
+      destination: './uploads/blogs',
+      filename: (req, file, cb) => {
+        const uniqueSuffix =
+          Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
+      },
+    }),
+  }),
+)
+async update(
+  @Param('id') id: string,
+  @Body() dto: UpdateBlogDto,
+  @UploadedFile() file?: Express.Multer.File,
+) {
+  if (file) {
+    dto.imageUrl = `/uploads/blogs/${file.filename}`;
   }
+  return await this.blogsService.updateBlog(+id, dto);
+}
 
   @Delete(':id')
   @ApiResponse({ status: 200, description: 'Blog deleted successfully.' })

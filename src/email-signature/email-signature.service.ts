@@ -2,9 +2,11 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  ForbiddenException
 } from '@nestjs/common';
 import { DbService } from '../db/db.service';
 import { UtilService } from '../util/util.service';
+import { UserService } from "../user/user.service";
 import {
   CreateEmailSignatureDto,
   UpdateEmailSignatureDto,
@@ -15,11 +17,21 @@ export class EmailSignatureService {
   constructor(
     private readonly dbService: DbService,
     private readonly utilService: UtilService,
+    private usersService: UserService,
   ) {}
 
   // 📌 CREATE SIGNATURE
   async create(dto: CreateEmailSignatureDto) {
     try {
+    const isPro = await this.usersService.isPro(dto.user_id);
+
+    if (!isPro) {
+      // Free plan allows only 1 signature
+      const existingSignatures = await this.getSignatures(dto.user_id);
+      if (existingSignatures.length >= 1) {
+        throw new ForbiddenException('Upgrade to Pro for multiple signatures');
+      }
+    }
       const query = `
         INSERT INTO email_signatures
         (user_id, name, designation, company, phone, email, website, logo_url, logo_base64, custom_html)
@@ -123,5 +135,15 @@ export class EmailSignatureService {
       null,
       'Email signature deleted successfully',
     );
+  }
+
+  
+    async getSignatures(userId: number) {
+    const query = `SELECT  * FROM email_signatures WHERE user_id = $1`;
+    const result = await this.dbService.executeQuery(query, [userId]);
+    if (!result.length) {
+      throw new NotFoundException('No email signatures found for this user');
+    }
+    return result;
   }
 }

@@ -16,7 +16,9 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
-
+// Increase payload limit to 10MB (or whatever you need)
+  app.useBodyParser('json', { limit: '10mb' });
+  app.useBodyParser('urlencoded', { extended: true, limit: '10mb' });
    // CORS headers for static files
   app.use('/uploads', (req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*'); // or your frontend URL
@@ -26,22 +28,29 @@ async function bootstrap() {
   });
   // Security & performance middlewares
   app.use(compression());
-  app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  }),
+);
 
   // Optional: global validation pipe
-  // app.useGlobalPipes(
-  //   new ValidationPipe({
-  //     whitelist: true,
-  //     forbidNonWhitelisted: true,
-  //     transform: true,
-  //   }),
-  // );
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   // -------------------- STATIC FILES --------------------
   // Serve uploads folder
   app.useStaticAssets(join('/var/www/html/cms/uploads'), {
     prefix: '/uploads',
   });
+  //  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+  //   prefix: '/uploads/',
+  // });
 
   // -------------------- CORS --------------------
   const LOCAL_HOSTS = ['localhost', '10.216.221.3', '72.61.229.100'];
@@ -50,7 +59,8 @@ async function bootstrap() {
   ...LOCAL_HOSTS.flatMap(host =>
     PORTS.map(port => `http://${host}:${port}`)
   ),
-  'http://72.61.229.100', // no port
+  'http://72.61.229.100', // no port,
+  'https://website-code-one.vercel.app'
 ];
 app.enableCors({
   origin: (origin, callback) => {

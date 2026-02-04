@@ -86,5 +86,24 @@ export class EmailService {
     }
   }
 
+   async sendEmail(userId: number, emailData: any) {
+    // await this.canSendEmail(userId);
+
+    // TODO: integrate with actual email service (SendGrid, SES, etc.)
+    console.log(`Sending email to ${emailData.to}`);
+
+    // Update sent count
+    await this.updateEmailLimit(userId, emailData.count || 1);
+  }
+
+  private async getEmailLimit(userId: number) {
+    // Fetch from email_limits table
+    // Example: return { emails_sent_today: 25, last_reset_date: '2026-01-13' }
+  }
+
+  private async updateEmailLimit(userId: number, count: number) {
+    // Update email_limits table
+  }
+
  
 }

@@ -45,6 +45,7 @@ import { WebsiteSettingsService } from './website/website-settings.service';
 import { WhatsappService } from './whatsapp/whatsapp.service';
 import { IMailService } from './util/mail.service';
 import { GmailImapService } from './util/gmail-imap.service';
+import { AuthModule } from './auth/auth.module';
 
 /* Modules */
 import { WhatsappModule } from './whatsapp/whatsapp.module';
@@ -60,6 +61,7 @@ import { EmailSignatureService } from './email-signature/email-signature.service
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     WhatsappModule,
+    AuthModule,
 
     JwtModule.registerAsync({
       imports: [ConfigModule],

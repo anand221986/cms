@@ -328,4 +328,101 @@ console.log(hash);
       throw new BadRequestException(err.message || 'Failed to reset password');
     }
   }
+
+
+   async googleLogin(profile: any) {
+  const { email, given_name, family_name, sub } = profile;
+
+  // 1️⃣ Fetch user from DB
+  const users = await this.dbService.executeQuery(`
+    SELECT
+      id,
+      first_name,
+      last_name,
+      email,
+      role,
+      status,
+      google_id,
+      provider
+    FROM users
+    WHERE email = $1
+    LIMIT 1
+  `, [email]);
+  let user = users?.[0];
+  // 2️⃣ Create user if not exists
+  if (!user) {
+    const insertResult = await this.dbService.executeQuery(`
+      INSERT INTO users (
+        email,
+        first_name,
+        last_name,
+        google_id,
+        provider,
+        status,
+        role
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING
+        id,
+        email,
+        first_name,
+        last_name,
+        role,
+        status
+    `, [
+      email,
+      given_name || '',
+      family_name || '',
+      sub,
+      'google',
+      1,          // active
+      'user',     // default role
+    ]);
+
+    user = insertResult[0];
+  }
+
+  // 3️⃣ Generate JWT
+  const payload = {
+    sub: user.id,
+    email: user.email,
+    role: user.role,
+  };
+const accessToken = this.jwtService.sign(payload);
+  // 4️⃣ Return response
+  return {
+    accessToken,
+    user,
+  };
+}
+
+generateTokens(user: {
+  id: number;
+  email: string;
+  role: string;
+  agency_id?: number;
+}) {
+  const payload = {
+    sub: user.id,
+    email: user.email,
+    role: user.role,
+    agency_id: user.agency_id,
+  };
+
+  const accessToken = this.jwtService.sign(payload, {
+    secret: process.env.JWT_SECRET,
+    expiresIn: '1h',
+  });
+
+  const refreshToken = this.jwtService.sign(payload, {
+    secret: process.env.JWT_REFRESH_SECRET,
+    expiresIn: '7d',
+  });
+
+  return {
+    accessToken,
+    refreshToken,
+  };
+}
+
 }

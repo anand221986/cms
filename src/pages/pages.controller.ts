@@ -13,13 +13,14 @@ import {
   ParseIntPipe,
   UploadedFile,
   UseInterceptors,
-   ValidationPipe
+   ValidationPipe,
+   UploadedFiles
 } from "@nestjs/common";
 import { Response } from "express";
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam } from "@nestjs/swagger";
 import { PageService } from "./pages.service";
 import {CreatePageSectionDto,AddSectionDto } from './page.dto';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor,AnyFilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 
@@ -138,15 +139,15 @@ async getPageSections(@Param('pageId') pageId: number) {
 
   // PUT /page-sections/pages/:pageId/sections
   // Use this for creating a new section
-  @Put('/:pageId/sections/:sectionId')
-  async createOrReplaceSection(
-    @Param('pageId') pageId: number,
-    @Param('sectionId') sectionId: number,
-    @Body() payload: any
-  ) {
-    const section = await this.pagesService.updateSection(pageId,sectionId, payload);
-    return { status: true, data: section };
-  }
+  // @Put('/:pageId/sections/:sectionId')
+  // async createOrReplaceSection(
+  //   @Param('pageId') pageId: number,
+  //   @Param('sectionId') sectionId: number,
+  //   @Body() payload: any
+  // ) {
+  //   const section = await this.pagesService.updateSection(pageId,sectionId, payload);
+  //   return { status: true, data: section };
+  // }
   //   @Post('/:pageId/sections')
   //  async createPageSection(
   //    @Param('pageId') pageId: number,
@@ -160,8 +161,90 @@ async getPageSections(@Param('pageId') pageId: number) {
   //   return { status: true, data: updatedSection };
   // }
 
+  @Put('/:pageId/sections/:sectionId')
+@UseInterceptors(
+  AnyFilesInterceptor({
+    storage: diskStorage({
+      destination: './uploads/clients',
+      filename: (req, file, cb) => {
+        const uniqueName =
+          Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, uniqueName + extname(file.originalname));
+      },
+    }),
+  }),
+  // FileInterceptor('image', {
+  //   storage: diskStorage({
+  //     destination: './uploads/sections',
+  //     filename: (req, file, cb) => {
+  //       const uniqueName =
+  //         Date.now() + '-' + Math.round(Math.random() * 1e9);
+  //       cb(null, uniqueName + extname(file.originalname));
+  //     },
+  //   }),
+  // }),
+)
+async updatePageSection(
+  @Param('pageId') pageId: number,
+  @Param('sectionId') sectionId: number,
+  // @UploadedFile() image: Express.Multer.File,
+  @UploadedFiles() files: Express.Multer.File[],
+  @Body(new ValidationPipe({ transform: true })) payload: Partial<AddSectionDto>,
+) {
+  // ✅ parse meta if sent as string (multipart/form-data case)
+  const meta =
+    typeof payload.meta === 'string'
+      ? JSON.parse(payload.meta)
+      : payload.meta;
+  // 🔹 Map uploaded files
+   const baseUrl = 'http://72.61.229.100:3001';
+  const fileMap = {};
+   let imagePath: string | undefined;
+  files?.forEach((file) => {
+    const fullPath = `${baseUrl}/uploads/clients/${file.filename}`;
+    fileMap[file.fieldname] = `${baseUrl}/uploads/clients/${file.filename}`;
+        if (file.fieldname === 'image') {
+      imagePath = file.filename;
+      meta.image = fullPath;
+    } else {
+      // 🔹 Other files (logos etc.)
+      fileMap[file.fieldname] = fullPath;
+    }
+  });
+ 
+ // 🔹 Update meta.client_items logos
+ 
+  if (meta?.client_items?.length) {
+    meta.client_items = meta.client_items.map((item) => ({
+      ...item,
+      logo: fileMap[item.logo] ?? item.logo, // replace key with actual path
+    }));
+  }
+  const section = await this.pagesService.updateSection(
+    pageId,
+    sectionId,
+    {
+      ...payload,
+      meta,
+      ...(imagePath && { imagePath }), // only update if image uploaded
+    },
+  );
+
+  return { status: true, data: section };
+}
+
+
   @Post('/:pageId/sections')
-@UseInterceptors(FileInterceptor('image', {
+// @UseInterceptors(FileInterceptor('image', {
+//   storage: diskStorage({
+//     destination: './uploads/sections',
+//     filename: (req, file, cb) => {
+//       const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
+//       cb(null, uniqueName + extname(file.originalname));
+//     },
+//   }),
+// }))
+@UseInterceptors(AnyFilesInterceptor({
   storage: diskStorage({
     destination: './uploads/sections',
     filename: (req, file, cb) => {
@@ -172,18 +255,43 @@ async getPageSections(@Param('pageId') pageId: number) {
 }))
 async createPageSection(
   @Param('pageId') pageId: number,
-  @UploadedFile() image: Express.Multer.File,
+  @UploadedFiles() files: Express.Multer.File[], // ✅ multiple files
   @Body(new ValidationPipe({ transform: true })) payload: AddSectionDto,
 ) {
   // parse meta manually if string
   const meta = typeof payload.meta === 'string' ? JSON.parse(payload.meta) : payload.meta;
 
+  // handle single vs multiple images
+
+  let imagePath: string | null = null;
+  const imagesPaths: string[] = [];
+
+  for (const file of files) {
+    if (file.fieldname === 'image') imagePath = file.filename;
+    if (file.fieldname === 'images') imagesPaths.push(file.filename);
+  }
   return this.pagesService.addSection(pageId, {
     ...payload,
     meta,
-    imagePath: image?.filename || null,
+    imagePath,      // single image (for leftImageRightContent)
+    imagesPaths,    // multiple images (for slider)
   });
 }
+// async createPageSection(
+//   @Param('pageId') pageId: number,
+//   // @UploadedFile() image: Express.Multer.File,
+//   @UploadedFiles() files: Express.Multer.File[], // ✅ multiple files
+//   @Body(new ValidationPipe({ transform: true })) payload: AddSectionDto,
+// ) {
+//   // parse meta manually if string
+//   const meta = typeof payload.meta === 'string' ? JSON.parse(payload.meta) : payload.meta;
+
+//   return this.pagesService.addSection(pageId, {
+//     ...payload,
+//     meta,
+//     imagePath: image?.filename || null,
+//   });
+// }
 
 
    @Delete('page-sections/:id')

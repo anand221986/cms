@@ -10,52 +10,28 @@ export class BlogsService {
     public utilService: UtilService
   ) {}
 
-  // 📌 Get All Blogs
-  async getAllBlogs() {
-    try {
-      const query = 'SELECT * FROM blogs ORDER BY updated_at DESC';
-      const list = await this.dbService.executeQuery(query); // Consistent use of executeQuery
-      return list.length > 0 ? list : [];
-    } catch (error) {
-      console.error('Error fetching blogs:', error);
-      throw new InternalServerErrorException('Failed to fetch blogs');
-    }
-  }
-
-  // 📌 Get Blog By ID
-  async getBlogById(id: number) {
-    try {
-      const query = `SELECT * FROM blogs WHERE id = $1`; // Fixed SQL query to use parameterized query correctly
-      const result = await this.dbService.executeQuery(query, [id]);
-
-      if (result.length === 0) {
-        throw new NotFoundException(`Blog with ID ${id} not found`);
-      }
-      return result[0];
-    } catch (error) {
-      console.error(`Error fetching blog by ID ${id}:`, error);
-      throw error instanceof NotFoundException
-        ? error
-        : new InternalServerErrorException('Failed to fetch blog');
-    }
-  }
-
-  // 📌 Create Blog
+    // 📌 Create Blog
   async createBlog(dto: CreateBlogDto) {
     try {
       const query = `
         INSERT INTO blogs
-        (title,  content, author, image_url, created_at, updated_at)
-        VALUES ($1, $2, $3, $4,NOW(), NOW())
+        (title,  description, author,badge, image_url,meta_title,meta_description,meta_keywords,og_title,og_description,og_image, created_at, updated_at)
+        VALUES ($1, $2, $3, $4,$5,$6,$7,$8,$9,$10,$11,NOW(), NOW())
         RETURNING *;
       `;
       const values = [
         dto.title,
-        dto.content,
+        dto.description,
         dto.author || null,
+        dto.badge || null,
         dto.imageUrl || null, // Assuming imageUrl is part of the DTO
+        dto.metaTitle || null,
+        dto.metaDescription || null,
+        dto.metaKeywords || null,
+        dto.ogTitle || null,
+        dto.ogDescription || null,
+        dto.ogImage || null,
       ];
-
       const result = await this.dbService.executeQuery(query, values);
       return this.utilService.successResponse(result[0], 'Blog added successfully.');
     } catch (error) {
@@ -63,37 +39,65 @@ export class BlogsService {
       throw new InternalServerErrorException('Failed to create blog');
     }
   }
-
   // 📌 Update Blog
-  async updateBlog(id: number, dto: UpdateBlogDto) {
-    try {
-      const query = `
-        UPDATE blogs
-        SET title = $1,
-            content = $2,
-            author = $3,
-            image_url = $4,
-            updated_at = NOW()
-        WHERE id = $5
-        RETURNING *;
-      `;
-      const values = [
-        dto.title,
-        dto.content,
-        dto.author || null,
-        dto.imageUrl || null, // Assuming imageUrl is part of the DTO
-        id,
-      ];
+ async updateBlog(id: number, dto: UpdateBlogDto) {
+  try {
+    const fields: string[] = [];
+    const values: any[] = [];
+    let index = 1;
 
-      const result = await this.dbService.executeQuery(query, values);
-      return this.utilService.successResponse(result[0], 'Blog updated successfully.');
-    } catch (error) {
-      console.error(`Error updating blog with ID ${id}:`, error);
-      throw error instanceof NotFoundException
-        ? error
-        : new InternalServerErrorException('Failed to update blog');
+    if (dto.title) {
+      fields.push(`title = $${index++}`);
+      values.push(dto.title);
     }
+
+    if (dto.description) {
+      fields.push(`description = $${index++}`);
+      values.push(dto.description);
+    }
+
+    if (dto.author) {
+      fields.push(`author = $${index++}`);
+      values.push(dto.author);
+    }
+     if (dto.badge) {
+      fields.push(`badge = $${index++}`);
+      values.push(dto.badge);
+    }
+
+    // ✅ Only update image if provided
+    if (dto.imageUrl) {
+      fields.push(`image_url = $${index++}`);
+      values.push(dto.imageUrl);
+    }
+
+    // Always update timestamp
+    fields.push(`updated_at = NOW()`);
+
+    const query = `
+      UPDATE blogs
+      SET ${fields.join(', ')}
+      WHERE id = $${index}
+      RETURNING *;
+    `;
+
+    values.push(id);
+
+    const result = await this.dbService.executeQuery(query, values);
+
+    if (!result.length) {
+      throw new NotFoundException(`Blog with ID ${id} not found`);
+    }
+
+    return this.utilService.successResponse(result[0], 'Blog updated successfully.');
+  } catch (error) {
+    console.error(`Error updating blog with ID ${id}:`, error);
+    throw error instanceof NotFoundException
+      ? error
+      : new InternalServerErrorException('Failed to update blog');
   }
+}
+
 
   // 📌 Delete Blog
   async deleteBlog(id: number) {
@@ -113,4 +117,36 @@ export class BlogsService {
         : new InternalServerErrorException('Failed to delete blog');
     }
   }
+
+  // 📌 Get All Blogs
+  async getAllBlogs() {
+    try {
+      const query = 'SELECT * FROM blogs ORDER BY updated_at DESC';
+      const list = await this.dbService.executeQuery(query); // Consistent use of executeQuery
+      return list.length > 0 ? list : [];
+    } catch (error) {
+      console.error('Error fetching blogs:', error);
+      throw new InternalServerErrorException('Failed to fetch blogs');
+    }
+  }
+
+  // 📌 Get Blog By ID
+async getBlogById(id: number) {
+  try {
+    const query = `SELECT *, regexp_replace(description, '<[^>]*>', '', 'g') AS plain_description FROM blogs WHERE id = $1`;
+    const result = await this.dbService.executeQuery(query, [id]);
+
+    if (result.length === 0) {
+      throw new NotFoundException(`Blog with ID ${id} not found`);
+    }
+
+    return result[0];
+  } catch (error) {
+    console.error(`Error fetching blog by ID ${id}:`, error);
+    throw error instanceof NotFoundException
+      ? error
+      : new InternalServerErrorException('Failed to fetch blog');
+  }
+}
+
 }

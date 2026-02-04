@@ -10,6 +10,7 @@ import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SignUpDto,SignInDto } from './dto/signup.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { GoogleAuthService } from './google-auth.service';
 
 
 @ApiTags('Auth')
@@ -17,6 +18,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 export class AuthController {
     private googleClient: OAuth2Client;
     private oAuth2Client: OAuth2Client;
+     private googleAuthService: GoogleAuthService;
     constructor(
         public authService: AuthService, private utilService: UtilService
     ) {
@@ -207,6 +209,24 @@ export class AuthController {
       return res.status(500).json({ error: 'OAuth2 token exchange failed' });
     }
   }
+
+   @Post('google')
+  async googleLogin(@Body('token') token: string) {
+    const profile = await this.googleAuthService.verifyToken(token);
+    return this.authService.googleLogin(profile);
+  }
+
+  //trade  :
+  @Get('google/callback')
+@UseGuards(AuthGuard('google'))
+async googleCallback(@Req() req, @Res() res) {
+  const user = req.user;
+  console.log(user,'user details')
+  const token = this.authService.generateTokens(user);
+  return res.redirect(
+    `http://localhost:8080/cms/google-success?token=${token}`
+  );
+}
 
 
 

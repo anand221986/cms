@@ -400,6 +400,24 @@ export class UserService {
   }
 }
 
+// Get the plan of a user by ID
+async getUserPlan(userId: number): Promise<string> {
+  const query = `SELECT plan FROM users WHERE id = ${userId} LIMIT 1`;
+  const result: any = await this.dbService.execute(query);
+
+  if (result.length > 0 && result[0].plan) {
+    return result[0].plan;
+  } else {
+    return 'free';
+  }
+}
+
+// Check if a user is on the Pro plan
+async isPro(userId: number): Promise<boolean> {
+  const plan = await this.getUserPlan(userId);
+  return plan === 'pro';
+}
+
 }
 
 

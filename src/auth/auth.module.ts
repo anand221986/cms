@@ -8,6 +8,9 @@ import { AuthController } from './auth.controller';
 import { UserService } from '../user/user.service';
 import { UtilService } from '../util/util.service';
 import { DbService } from '../db/db.service';
+import { JwtStrategy } from '../jwt.strategy';
+import { PassportModule } from '@nestjs/passport';
+import { GoogleStrategy } from './strategies/google.strategy';
 
 @Module({
     imports: [
@@ -15,6 +18,7 @@ import { DbService } from '../db/db.service';
         JwtModule.register({
             global: true,
         }),
+         PassportModule.register({ session: false }),
     ],
     controllers: [AuthController],
     providers: [
@@ -22,7 +26,7 @@ import { DbService } from '../db/db.service';
         AuthGuard, 
         UserService, 
         UtilService, 
-        DbService
+        DbService,JwtStrategy,GoogleStrategy,
     ],
     exports: [AuthGuard, AuthService],
 })
